@@ -2,6 +2,7 @@
 
 Plan a property-carrying truck trip under FMCSA Hours-of-Service rules and get:
 
+- **turn-by-turn route instructions** for each leg (current → pickup → drop-off), and
 - a **route map** with every pickup, drop-off, fuel stop, 30-minute break, 10-hour rest and 34-hour restart, and
 - **filled-out Driver's Daily Log sheets**, one per calendar day, drawn on the standard paper-log grid (print or download as PDF).
 
@@ -30,6 +31,7 @@ Plan a property-carrying truck trip under FMCSA Hours-of-Service rules and get:
 ```
 React ──POST /api/trips/plan/──► Django
                                  ├─ geo.py          geocode (Nominatim → Photon) + OSRM route
+                                 ├─ directions.py   OSRM maneuvers → readable turn-by-turn steps
                                  ├─ hos_engine.py   pure-Python clock simulation of the rules above
                                  └─ log_builder.py  midnight-to-midnight sheets, totals, remarks, recap
 ```
@@ -78,4 +80,4 @@ cd backend && pytest -q
 }
 ```
 
-Locations may be free text or `{label, lat, lng}`. `start_time` is wall-clock time at the home terminal; omit it to leave now (rounded up to the next 15 minutes). The response contains `summary`, `places`, `route.geometry`, `events` (full duty timeline), `stops` (map markers) and `daily_logs` (grid segments, totals, remarks, recap per day).
+Locations may be free text or `{label, lat, lng}`. `start_time` is wall-clock time at the home terminal; omit it to leave now (rounded up to the next 15 minutes). The response contains `summary`, `places`, `route.geometry`, `route.legs[].steps` (turn-by-turn), `events` (full duty timeline), `stops` (map markers) and `daily_logs` (grid segments, totals, remarks, recap per day).

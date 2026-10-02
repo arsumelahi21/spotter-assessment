@@ -2,7 +2,8 @@ import { AlertTriangle, BookOpen, FileText, Map as MapIcon, Route as RouteIcon }
 import { useEffect, useRef, useState } from 'react'
 import clsx from 'clsx'
 import LogsPanel from './components/LogsPanel'
-import RouteMap from './components/RouteMap'
+import Directions from './components/Directions'
+import RouteMap, { type FocusPoint } from './components/RouteMap'
 import RulesDialog from './components/RulesDialog'
 import SummaryStats from './components/SummaryStats'
 import Timeline from './components/Timeline'
@@ -77,6 +78,8 @@ export default function App() {
   const [selected, setSelected] = useState<number | null>(null)
   const [server, setServer] = useState<ServerState>('checking')
   const [rulesOpen, setRulesOpen] = useState(false)
+  const [sideTab, setSideTab] = useState<'timeline' | 'directions'>('timeline')
+  const [focus, setFocus] = useState<(FocusPoint & { key: string }) | null>(null)
   const resultsRef = useRef<HTMLDivElement>(null)
   const abortRef = useRef<AbortController | null>(null)
 
@@ -97,6 +100,7 @@ export default function App() {
     setSlow(false)
     setError(null)
     setSelected(null)
+    setFocus(null)
     const slowTimer = setTimeout(() => setSlow(true), 6000)
     if (window.innerWidth < 1024) resultsRef.current?.scrollIntoView({ behavior: 'smooth' })
     try {
@@ -166,16 +170,67 @@ export default function App() {
 
           <div className={clsx('no-print grid gap-5', plan && !loading && 'xl:grid-cols-[minmax(0,1fr)_360px]', loading && 'hidden')}>
             <div className="card h-[440px] p-1.5 lg:h-[520px]">
-              <RouteMap plan={plan} selected={selected} onSelect={setSelected} />
+              <RouteMap
+                plan={plan}
+                selected={selected}
+                onSelect={(i) => {
+                  setSelected(i)
+                  if (i != null) setFocus(null)
+                }}
+                focus={focus}
+              />
             </div>
             {plan && !loading && (
               <div className="card flex h-[520px] flex-col">
-                <div className="border-b border-slate-100 px-4 py-3">
-                  <h3 className="text-base font-bold text-ink">Trip timeline</h3>
-                  <p className="text-xs text-slate-500">Tap a stop to find it on the map</p>
+                <div className="border-b border-slate-100 px-4 pb-3 pt-3">
+                  <div className="grid grid-cols-2 gap-1 rounded-xl bg-slate-100 p-1 text-sm font-semibold" role="tablist">
+                    {(
+                      [
+                        ['timeline', 'Trip timeline'],
+                        ['directions', 'Directions'],
+                      ] as const
+                    ).map(([key, label]) => (
+                      <button
+                        key={key}
+                        type="button"
+                        role="tab"
+                        aria-selected={sideTab === key}
+                        onClick={() => setSideTab(key)}
+                        className={clsx(
+                          'rounded-lg py-1.5 transition',
+                          sideTab === key ? 'bg-white text-ink shadow-sm' : 'text-slate-500 hover:text-slate-700',
+                        )}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="mt-2 text-xs text-slate-500">
+                    {sideTab === 'timeline'
+                      ? 'Stops and rests in order — tap one to find it on the map'
+                      : 'Turn-by-turn route — tap a step to zoom to it'}
+                  </p>
                 </div>
                 <div className="flex-1 overflow-y-auto px-3 pb-3">
-                  <Timeline plan={plan} selected={selected} onSelect={setSelected} />
+                  {sideTab === 'timeline' ? (
+                    <Timeline
+                      plan={plan}
+                      selected={selected}
+                      onSelect={(i) => {
+                        setFocus(null)
+                        setSelected(i)
+                      }}
+                    />
+                  ) : (
+                    <Directions
+                      plan={plan}
+                      focused={focus?.key ?? null}
+                      onFocus={(key, s) => {
+                        setSelected(null)
+                        setFocus({ key, lat: s.lat, lng: s.lng, label: s.instruction })
+                      }}
+                    />
+                  )}
                 </div>
               </div>
             )}

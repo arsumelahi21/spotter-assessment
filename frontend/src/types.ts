@@ -59,6 +59,17 @@ export interface DailyLog {
   recap: { on_duty_today: number; last_8_days: number; available_tomorrow: number }
 }
 
+export interface RouteStep {
+  instruction: string
+  type: string
+  modifier: string
+  distance_mi: number
+  duration_min: number
+  lat: number
+  lng: number
+  road_ref: string
+}
+
 export interface TripPlan {
   summary: {
     total_miles: number
@@ -78,7 +89,7 @@ export interface TripPlan {
   places: Record<'current' | 'pickup' | 'dropoff', PlaceInput>
   route: {
     geometry: [number, number][]
-    legs: { from: string; to: string; miles: number; drive_hours: number }[]
+    legs: { from: string; to: string; miles: number; drive_hours: number; steps: RouteStep[] }[]
   }
   events: TripEvent[]
   stops: TripEvent[]

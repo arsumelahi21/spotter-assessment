@@ -44,6 +44,13 @@
   margin: 12px 14px;
 }
 
+.leaflet-tooltip.step-tip {
+  white-space: normal;
+  width: max-content;
+  max-width: 220px;
+  border-radius: 10px;
+}
+
 @keyframes shimmer {
   100% {
     transform: translateX(100%);

@@ -13,7 +13,7 @@ import json
 import math
 import threading
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from functools import lru_cache
 from pathlib import Path
 
@@ -124,6 +124,7 @@ class Route:
     cum_miles: list[float]  # cumulative miles along coords, scaled to OSRM distance
     leg_miles: list[float]
     leg_minutes: list[float]
+    leg_steps: list[list[dict]] = field(default_factory=list)  # raw OSRM steps per leg
 
     @property
     def total_miles(self) -> float:
@@ -151,13 +152,13 @@ class Route:
 
 def route(places: list[Place]) -> Route:
     waypoints = ";".join(f"{p.lng:.6f},{p.lat:.6f}" for p in places)
-    key = f"route:{waypoints}"
+    key = f"route:v2:{waypoints}"
     if hit := cache.get(key):
         return Route(**hit)
     try:
         r = _session().get(
             f"{settings.OSRM_URL}/route/v1/driving/{waypoints}",
-            params={"overview": "full", "geometries": "geojson", "steps": "false"},
+            params={"overview": "full", "geometries": "geojson", "steps": "true"},
             timeout=25,
         )
         data = r.json()
@@ -179,7 +180,12 @@ def route(places: list[Place]) -> Route:
         scale = total / cum[-1]
         cum = [c * scale for c in cum]
 
-    result = Route(coords, cum, leg_miles, leg_minutes)
+    leg_steps = [
+        [{k: st.get(k) for k in ("name", "ref", "destinations", "exits", "distance", "duration", "maneuver")}
+         for st in leg.get("steps", [])]
+        for leg in best["legs"]
+    ]
+    result = Route(coords, cum, leg_miles, leg_minutes, leg_steps)
     cache.set(key, result.__dict__, 60 * 60 * 6)
     return result
 

@@ -3,7 +3,7 @@ import L from 'leaflet'
 import { BedDouble, Coffee, Flag, Fuel, Navigation, Package, RotateCcw } from 'lucide-react'
 import { useEffect, useMemo, useRef } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
-import { MapContainer, Marker, Polyline, Popup, TileLayer, useMap } from 'react-leaflet'
+import { CircleMarker, MapContainer, Marker, Polyline, Popup, TileLayer, Tooltip, useMap } from 'react-leaflet'
 import { KIND_META, STATUS_META, fmtDateTime, fmtHours, fmtMiles } from '../lib/format'
 import type { EventKind, TripPlan } from '../types'
 
@@ -56,21 +56,29 @@ function FitBounds({ points }: { points: [number, number][] }) {
   return null
 }
 
-function FlyTo({ target }: { target: [number, number] | null }) {
+function FlyTo({ target, zoom = 8 }: { target: [number, number] | null; zoom?: number }) {
   const map = useMap()
   useEffect(() => {
-    if (target) map.flyTo(target, Math.max(map.getZoom(), 8), { duration: 0.8 })
-  }, [map, target])
+    if (target) map.flyTo(target, Math.max(map.getZoom(), zoom), { duration: 0.8 })
+  }, [map, target, zoom])
   return null
+}
+
+export interface FocusPoint {
+  lat: number
+  lng: number
+  label: string
 }
 
 interface Props {
   plan: TripPlan | null
   selected: number | null
   onSelect: (i: number | null) => void
+  focus?: FocusPoint | null
 }
 
-export default function RouteMap({ plan, selected, onSelect }: Props) {
+export default function RouteMap({ plan, selected, onSelect, focus }: Props) {
+  const focusTarget = useMemo<[number, number] | null>(() => (focus ? [focus.lat, focus.lng] : null), [focus])
   const markerRefs = useRef<Record<number, L.Marker | null>>({})
   const geometry = useMemo(() => plan?.route.geometry ?? [], [plan])
   const target = useMemo<[number, number] | null>(() => {
@@ -105,6 +113,19 @@ export default function RouteMap({ plan, selected, onSelect }: Props) {
             <Polyline positions={geometry} pathOptions={{ color: '#e8505b', weight: 4, opacity: 0.95 }} />
             <FitBounds points={geometry} />
             <FlyTo target={target} />
+            <FlyTo target={focusTarget} zoom={13} />
+            {focus && (
+              <CircleMarker
+                key={`${focus.lat},${focus.lng}`}
+                center={[focus.lat, focus.lng]}
+                radius={9}
+                pathOptions={{ color: '#ffffff', weight: 3, fillColor: '#0b2e3a', fillOpacity: 1 }}
+              >
+                <Tooltip direction="top" offset={[0, -8]} permanent className="step-tip">
+                  <span className="text-xs font-semibold">{focus.label}</span>
+                </Tooltip>
+              </CircleMarker>
+            )}
             <Marker position={[plan.places.current.lat, plan.places.current.lng]} icon={markerIcon('current')}>
               <Popup>
                 <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Start</p>

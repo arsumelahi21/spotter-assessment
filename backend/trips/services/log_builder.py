@@ -9,6 +9,7 @@ from __future__ import annotations
 from collections import defaultdict
 from datetime import datetime, timedelta
 
+from .directions import build_steps
 from .geo import Place, Route, nearest_city
 from .hos_engine import CYCLE_LIMIT, D, OFF, ON, SB, Event, TripPlan
 
@@ -92,10 +93,17 @@ def build_response(plan: TripPlan, route: Route, places: dict[str, Place], start
         "route": {
             "geometry": route.simplified(),
             "legs": [
-                {"from": "current", "to": "pickup", "miles": round(route.leg_miles[0], 1),
-                 "drive_hours": _hours(route.leg_minutes[0])},
-                {"from": "pickup", "to": "dropoff", "miles": round(route.leg_miles[1], 1),
-                 "drive_hours": _hours(route.leg_minutes[1])},
+                {
+                    "from": src,
+                    "to": dst,
+                    "miles": round(route.leg_miles[i], 1),
+                    "drive_hours": _hours(route.leg_minutes[i]),
+                    "steps": build_steps(
+                        route.leg_steps[i] if i < len(route.leg_steps) else [],
+                        arrive_label=places[dst].label,
+                    ),
+                }
+                for i, (src, dst) in enumerate([("current", "pickup"), ("pickup", "dropoff")])
             ],
         },
         "events": events,
